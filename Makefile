@@ -47,6 +47,12 @@ dev: ## Run the backend server in development mode with auto-reload (requires ai
 
 # Development tools
 deps: ## Download and install dependencies
+	@echo "Installing core Ethereum libraries..."
+	@cd $(BACKEND_DIR) && go get github.com/ethereum/go-ethereum
+	@echo "Installing additional libraries..."
+	@cd $(BACKEND_DIR) && go get github.com/gorilla/websocket
+	@cd $(BACKEND_DIR) && go get github.com/sirupsen/logrus
+	@cd $(BACKEND_DIR) && go get golang.org/x/time/rate
 	@echo "Downloading dependencies..."
 	@cd $(BACKEND_DIR) && go mod download
 	@cd $(BACKEND_DIR) && go mod tidy

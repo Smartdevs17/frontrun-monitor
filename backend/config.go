@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -11,6 +13,38 @@ type Config struct {
 	Env          string
 	DatabaseURL  string
 	LogLevel     string
+}
+
+// Validate validates the configuration values
+func (c *Config) Validate() error {
+	if c.Port < 1 || c.Port > 65535 {
+		return fmt.Errorf("invalid port: %d (must be between 1 and 65535)", c.Port)
+	}
+
+	validEnvs := map[string]bool{
+		"development": true,
+		"staging":     true,
+		"production":  true,
+	}
+	if !validEnvs[c.Env] {
+		return fmt.Errorf("invalid environment: %s (must be development, staging, or production)", c.Env)
+	}
+
+	validLogLevels := map[string]bool{
+		"debug": true,
+		"info":  true,
+		"warn":  true,
+		"error": true,
+	}
+	if !validLogLevels[c.LogLevel] {
+		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", c.LogLevel)
+	}
+
+	if c.DatabaseURL == "" {
+		return errors.New("database URL cannot be empty")
+	}
+
+	return nil
 }
 
 // LoadConfig loads configuration from environment variables
