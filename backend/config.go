@@ -9,10 +9,17 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Port         int
-	Env          string
-	DatabaseURL  string
-	LogLevel     string
+	Port        int
+	Env         string
+	DatabaseURL string
+	LogLevel    string
+
+	// Mempool monitoring configuration
+	EthereumRPCURL  string  // HTTP RPC endpoint
+	EthereumWSURL   string  // WebSocket endpoint
+	UseWebSocket    bool    // Use WebSocket (true) or HTTP (false)
+	MinGasPriceGwei float64 // Minimum gas price to monitor (in Gwei)
+	MaxTransactions int     // Max transactions to process per second
 }
 
 // Validate validates the configuration values
@@ -44,6 +51,27 @@ func (c *Config) Validate() error {
 		return errors.New("database URL cannot be empty")
 	}
 
+	// Validate Ethereum node configuration
+	if c.UseWebSocket {
+		if c.EthereumWSURL == "" {
+			return errors.New("Ethereum WebSocket URL is required when USE_WEBSOCKET=true")
+		}
+	} else {
+		if c.EthereumRPCURL == "" {
+			return errors.New("Ethereum RPC URL is required when USE_WEBSOCKET=false")
+		}
+	}
+
+	// Validate MaxTransactions
+	if c.MaxTransactions < 1 {
+		return fmt.Errorf("invalid max transactions per second: %d (must be at least 1)", c.MaxTransactions)
+	}
+
+	// Validate MinGasPriceGwei (if set, must be positive)
+	if c.MinGasPriceGwei < 0 {
+		return fmt.Errorf("invalid minimum gas price: %.2f Gwei (must be non-negative)", c.MinGasPriceGwei)
+	}
+
 	return nil
 }
 
@@ -54,6 +82,13 @@ func LoadConfig() (*Config, error) {
 		Env:         getEnv("ENV", "development"),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://localhost/frontrun_monitor"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
+
+		// Mempool monitoring config
+		EthereumRPCURL:  getEnv("ETHEREUM_RPC_URL", ""),
+		EthereumWSURL:   getEnv("ETHEREUM_WS_URL", ""),
+		UseWebSocket:    getEnv("USE_WEBSOCKET", "true") == "true",
+		MinGasPriceGwei: getEnvAsFloat("MIN_GAS_PRICE_GWEI", 0.0),
+		MaxTransactions: getEnvAsInt("MAX_TRANSACTIONS_PER_SEC", 1000),
 	}
 
 	return cfg, nil
@@ -71,6 +106,15 @@ func getEnv(key, defaultVal string) string {
 func getEnvAsInt(key string, defaultVal int) int {
 	valStr := getEnv(key, "")
 	if val, err := strconv.Atoi(valStr); err == nil {
+		return val
+	}
+	return defaultVal
+}
+
+// getEnvAsFloat retrieves an environment variable as a float with a default value
+func getEnvAsFloat(key string, defaultVal float64) float64 {
+	valStr := getEnv(key, "")
+	if val, err := strconv.ParseFloat(valStr, 64); err == nil {
 		return val
 	}
 	return defaultVal
